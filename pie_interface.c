@@ -14,7 +14,7 @@ static struct option long_options[] = {
 
 static char short_options[] = "ht:s:p:g:";
 
-static char help_msg[] = "Usage: %s [-h|--help] [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET]\n"
+static char help_msg[] = "Usage: %s [-h|--help] [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET] [-g|--stackmagic]\n"
                        "    -h, --help\tShow this help message\n"
                        "    -t, --text TEXT_SEG_BASE\tEnable text base PIE hook (TEXT_SEG_BASE means 0x555555554000 + OFFSET)\n"
                        "    -s, --stack STACK_BASE\tEnable stack base hook (STACK_BASE means the top of user stack area)\n"
@@ -125,7 +125,7 @@ int doTextHook(size_t addr) {
     struct piehook_param p = {0, 0, 0};
 
     if(fd < 0){
-        errorMsg("Cannot open /dev/piehook");
+        errorMsg("Cannot open /dev/piehook, may use \"sudo\" or \"insmod\"");
         return -1;
     }
 
@@ -146,10 +146,10 @@ int doTextHook(size_t addr) {
         return -1;
     }
     if (p.result & 1) {
-        infoMsg("Text base hooked, but address is not aligned, TEXT_BASE: %#lx", addr);
+        infoMsg("Text base hooked, but address is not aligned, TEXT_BASE: %#lx", addr & (~0xfff));
         return 0;
     }
-    infoMsg("Text base hooked successfully, TEXT_BASE: %#lx", addr);
+    infoMsg("Text base hooked successfully, TEXT_BASE: %#lx", addr & (~0xfff));
     return 0;
 } 
 
@@ -162,7 +162,7 @@ int doStackBaseHook(size_t addr){
     struct piehook_param p = {0, 0, 0};
 
     if(fd < 0){
-        errorMsg("Cannot open /dev/piehook");
+        errorMsg("Cannot open /dev/piehook, may use \"sudo\" or \"insmod\"");
         return -1;
     }
 
@@ -194,7 +194,7 @@ int doStackOffsetHook(size_t offset){
     struct piehook_param p = {0, 0, 0};
 
     if(fd < 0){
-        errorMsg("Cannot open /dev/piehook");
+        errorMsg("Cannot open /dev/piehook, may use \"sudo\" or \"insmod\"");
         return -1;
     }
 
@@ -227,7 +227,7 @@ int doHeapHook(size_t offset){
     struct piehook_param p = {0, 0, 0};
 
     if(fd < 0){
-        errorMsg("Cannot open /dev/piehook");
+        errorMsg("Cannot open /dev/piehook, may use \"sudo\" or \"insmod\"");
         return -1;
     }
 
