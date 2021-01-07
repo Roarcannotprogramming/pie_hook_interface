@@ -8,6 +8,7 @@ static struct option long_options[] = {
     {"text", required_argument, NULL, 't'},
     {"stack", required_argument, NULL, 's'},
     {"heap", required_argument, NULL, 'p'},
+    {"stackmagic", required_argument, NULL,'g'},
     {NULL, 0, NULL, 0}
 };
 
@@ -49,13 +50,18 @@ int main(int argc, char *argv[]) {
             break;
         
         case 'p':
-            // addr -> offset
+            // addr -> heap offset
             addr = string2Addr(optarg);
             doHeapHook(addr);
             break;
+
+        case 'g':
+            // addr -> stack offset
+            addr = string2Addr(optarg);
+            doStackOffsetHook(addr);
+            break;
         
         default:
-            // BUG
             fprintf(stderr, "\n");
             fprintf(stderr, help_msg, argv[0]);
             break;
@@ -87,7 +93,7 @@ void errorMsg(const char *format, ...) {
     temp_str[len - 1] = '\n';
 
     va_start(ap, format);
-    fprintf(stderr, temp_str, ap);    
+    vfprintf(stderr, temp_str, ap);    
 
     free(temp_str);
     va_end(ap);
@@ -103,7 +109,7 @@ void infoMsg(const char *format, ...) {
     temp_str[len - 1] = '\n';
 
     va_start(ap, format);
-    fprintf(stderr, temp_str, ap);    
+    vfprintf(stderr, temp_str, ap);    
 
     free(temp_str);
     va_end(ap);
@@ -134,15 +140,16 @@ int doTextHook(size_t addr) {
         errorMsg("Cannot config PIE hook");
         return -1;
     }
+
     if(p.result & 2) {
         errorMsg("Address is invalid, check your input");
         return -1;
     }
     if (p.result & 1) {
-        infoMsg("Text base hooked, but address is not aligned");
+        infoMsg("Text base hooked, but address is not aligned, TEXT_BASE: %#lx", addr);
         return 0;
     }
-    infoMsg("Text base hooked successfully");
+    infoMsg("Text base hooked successfully, TEXT_BASE: %#lx", addr);
     return 0;
 } 
 
@@ -175,10 +182,10 @@ int doStackBaseHook(size_t addr){
         return -1;
     }
     if (p.result & 1) {
-        infoMsg("Stack base hooked, but address is not aligned");
+        infoMsg("Stack base hooked, but address is not aligned, STACK_BASE: %#lx", addr & (~0xfff));
         return 0;
     }
-    infoMsg("Stack base hooked successfully");
+    infoMsg("Stack base hooked successfully, STACK_BASE: %#lx", addr & (~0xfff));
     return 0;
 }
 
@@ -206,11 +213,7 @@ int doStackOffsetHook(size_t offset){
         errorMsg("Address is invalid, check your input");
         return -1;
     }
-    if (p.result & 1) {
-        infoMsg("Stack offset hooked, but address is not aligned");
-        return 0;
-    }
-    infoMsg("Stack offset hooked successfully");
+    infoMsg("Stack offset hooked successfully, STACK_OFFSET: %#lx", offset);
     return 0;
 }
 
@@ -244,9 +247,9 @@ int doHeapHook(size_t offset){
         return -1;
     }
     if (p.result & 1) {
-        infoMsg("Heap base hooked, but address is not aligned");
+        infoMsg("Heap base hooked, but address is not aligned, HEAP_BASE: %#lx", offset & (~0xfff));
         return 0;
     }
-    infoMsg("Heap base hooked successfully");
+    infoMsg("Heap base hooked successfully, HEAP_BASE: %#lx", offset & (~0xfff));
     return 0;
 }
