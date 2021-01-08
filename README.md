@@ -1,12 +1,8 @@
 # PIEHook Interface
 
-[toc]
-
 ## Introduce
 
 This is the interface of PIEHook written by @kongjiadongyuan(not opensource by now).
-
-
 
 ## Install
 
