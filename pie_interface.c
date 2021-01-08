@@ -9,6 +9,13 @@ typedef struct parameter {
     struct parameter *next;
 } PARAM;
 
+typedef struct hook_options {
+    size_t text;
+    size_t stack;
+    size_t heap;
+    size_t stackmagic;
+} HOOK_OPTIONS;
+
 static struct option long_options[] = {
     {"help", no_argument, NULL, 'h'},
     {"text", required_argument, NULL, 't'},
@@ -100,6 +107,7 @@ int decodeJson(char *filename) {
     FILE *fp = fopen(filename, "rb"); 
     long file_size = 0;
     char *buf;
+    size_t addr;
     if (!fp) {
         errorMsg("Cannot open %s", filename);
         return -1;
@@ -114,27 +122,44 @@ int decodeJson(char *filename) {
     buf = (char *)malloc(file_size + 1);
     fread(buf, sizeof(char), file_size, fp);
     buf[file_size] = '\0';
-    printf("%s\n", buf);
+    // printf("%s\n", buf);
     fclose(fp);
 
-    // TODO
-
+    cJSON *root = cJSON_Parse(buf);
+    cJSON *json_text = cJSON_GetObjectItem(root, "text");
+    if (json_text) {
+        addr = string2Addr(json_text->valuestring);
+        doTextHook(addr);
+    }
+    cJSON *json_heap = cJSON_GetObjectItem(root, "heap");
+    if (json_heap) {
+        addr = string2Addr(json_heap->valuestring);
+        doHeapHook(addr);
+    }
+    cJSON *json_stackoff = cJSON_GetObjectItem(root, "stackmagic");
+    if (json_stackoff) {
+        addr = string2Addr(json_stackoff->valuestring);
+        doStackOffsetHook(addr);
+    }
+    cJSON *json_stackbase = cJSON_GetObjectItem(root, "stack");
+    if (json_stackbase) {
+        addr = string2Addr(json_stackbase->valuestring);
+        doStackBaseHook(addr);
+    }
     return 0;
 }
 
 
 int encodeJson(PARAM *params, char* filename) {
-    cJSON *root, *temp;
+    cJSON *root;
     PARAM *param;
     char buf[0x20];
     FILE* fp = NULL;
-    root = cJSON_CreateArray();
+    root = cJSON_CreateObject();
     for (param = params; param != NULL; param=param->next) {
-        temp = cJSON_CreateObject();
         sprintf(buf, "%#lx", param->num_val);
-        cJSON_AddStringToObject(temp, param->key, buf);
-        printf("%s\n", buf);
-        cJSON_AddItemToArray(root, temp);
+        cJSON_AddStringToObject(root, param->key, buf);
+        // printf("%s\n", buf);
     }
     
     fp = fopen(filename, "w");
@@ -154,6 +179,10 @@ PARAM* insertParamList(PARAM *root, char *key, size_t val) {
     PARAM* temp_param = NULL;
     temp_param = root;
     root = (PARAM *)malloc(sizeof(PARAM));
+    if (!root) {
+        errorMsg("Parameter alloc failed");
+        return NULL;
+    }
     root->next = temp_param;
     root->key = strdup(key);
     root->num_val = val;
@@ -182,6 +211,7 @@ void errorMsg(const char *format, ...) {
     strcpy(temp_str, prefix);
     strcat(temp_str, format);
     temp_str[len - 1] = '\n';
+    temp_str[len] = '\0';
 
     va_start(ap, format);
     vfprintf(stderr, temp_str, ap);    
@@ -198,6 +228,7 @@ void infoMsg(const char *format, ...) {
     strcpy(temp_str, prefix);
     strcat(temp_str, format);
     temp_str[len - 1] = '\n';
+    temp_str[len] = '\0';
 
     va_start(ap, format);
     vfprintf(stderr, temp_str, ap);    
