@@ -1,10 +1,8 @@
 # PIEHook Interface
 
-[toc]
-
 ## Introduce
 
-This is the interface of PIEHook written by @kongjiadongyuan(not opensource by now).
+This is the interface of PIEHook written by @[kongjiadongyuan](https://github.com/kongjiadongyuan)(not opensource by now).
 
 
 
@@ -56,7 +54,7 @@ $ tree -d
 └── pie_hook_interface
 ```
 
-Step 1. Clone `cJSON` project from https://github.com/DaveGamble/cJSON. And get piehook kernel module from @kongjiadongyuan
+Step 1. Clone `cJSON` project from https://github.com/DaveGamble/cJSON. And get piehook kernel module from @[kongjiadongyuan](https://github.com/kongjiadongyuan)
 
 Step 2. Run `make` in the three directory `cJSON, piehook, pie_hook_interface`.
 
