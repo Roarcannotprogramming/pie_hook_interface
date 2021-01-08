@@ -2,6 +2,7 @@
 #define PIE_INTERFACE_H
 
 #include "../piehook/piehook_define.h"
+#include "../cJSON/cJSON.h"
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
