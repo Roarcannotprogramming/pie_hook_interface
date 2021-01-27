@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS:=-Wall -g -m64
+CFLAGS:=-Wall -g -m64 -static
 SRC:= $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRC)) 
 EXT_OBJS := $(wildcard ../cJSON/*.o)

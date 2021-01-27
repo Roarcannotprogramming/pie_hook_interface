@@ -24,20 +24,26 @@ static struct option long_options[] = {
     {"stackmagic", required_argument, NULL,'g'},
     {"encodejson", required_argument, NULL, 'e'},
     {"decodejson", required_argument, NULL, 'd'},
+    {"load", optional_argument, NULL, 'l'},
+    {"unload", no_argument, NULL, 'u'},
     {NULL, 0, NULL, 0}
 };
 
-static char short_options[] = "ht:s:p:g:e:d:";
+static char short_options[] = "hl::ut:s:p:g:e:d:";
 
-static char help_msg[] = "Usage: %s [-h|--help] [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET] [-g|--stackmagic]\n"
-                       "               [-e|--encodejson JSONFILE] [-d|--decodejson JSONFILE]\n"
-                       "    -h, --help\tShow this help message\n"
-                       "    -t, --text TEXT_SEG_BASE\tEnable text base PIE hook (TEXT_SEG_BASE means 0x555555554000 + OFFSET)\n"
-                       "    -s, --stack STACK_BASE\tEnable stack base hook (STACK_BASE means the top of user stack area)\n"
-                       "    -p, --heap HEAP_OFFSET\tEnable heap base hook (HEAP_OFFSET means OFFSET from the end of text area)\n"
-                       "    -g, --stackmagic STACK_OFFSET\tEnable stack offset hook(the offset need to be fine-tuning manually)\n"
-                       "    -e, --encodejson JSONFILE\texport the setting message to JSONFILE in format of json\n"
-                       "    -d, --decodejson JSONFILE\timport the setting message from JSONFILE in format of json\n";
+static char help_msg[] = "Usage: %s [-h|--help]\n"
+                         "          [-l|--load [MOD_DIR]] [-u|--unload]\n"
+                         "          [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET] [-g|--stackmagic]\n"
+                         "          [-e|--encodejson JSONFILE] [-d|--decodejson JSONFILE]\n"
+                         "    -h, --help\tShow this help message\n"
+                         "    -l, --load\tLoad the piehook kernel module (MOD_DIR means the directory of piehook project, default is ../piehook)\n"
+                         "    -u, --unload\tUnload the piehook kernel module (DO NOT CHANGE THE NAME OF MODULE \"piehook\")\n"
+                         "    -t, --text TEXT_SEG_BASE\tEnable text base PIE hook (TEXT_SEG_BASE means 0x555555554000 + OFFSET)\n"
+                         "    -s, --stack STACK_BASE\tEnable stack base hook (STACK_BASE means the top of user stack area)\n"
+                         "    -p, --heap HEAP_OFFSET\tEnable heap base hook (HEAP_OFFSET means OFFSET from the end of text area)\n"
+                         "    -g, --stackmagic STACK_OFFSET\tEnable stack offset hook(the offset need to be fine-tuning manually)\n"
+                         "    -e, --encodejson JSONFILE\texport the setting message to JSONFILE in format of json\n"
+                         "    -d, --decodejson JSONFILE\timport the setting message from JSONFILE in format of json\n";
 
 size_t string2Addr(char *s);
 void errorMsg(const char *format, ...);
@@ -49,6 +55,8 @@ int doHeapHook(size_t offset);
 int encodeJson(PARAM *params, char *filename);
 int decodeJson(char *filename);
 PARAM* insertParamList(PARAM *root, char *key, size_t val);
+int doLoadMod(char *path);
+int doUnloadMod();
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -56,10 +64,28 @@ int main(int argc, char *argv[]) {
     size_t addr = 0;
     PARAM *params = NULL;
 
+    if(getuid()) {
+        errorMsg("Run as ROOT!!!");
+        return 0;
+    }
+
     while(EOF != (opt = getopt_long(argc, argv, short_options, long_options, &long_index))) {
         switch (opt) {
         case 'h':
             fprintf(stderr, help_msg, argv[0]);
+            break;
+        
+        case 'l':
+            if (optarg) {
+                doLoadMod(optarg);
+            }
+            else {
+                doLoadMod("../piehook");
+            }
+            break;
+
+        case 'u':
+            doUnloadMod();
             break;
         
         case 't':
@@ -101,6 +127,60 @@ int main(int argc, char *argv[]) {
             break;
         }
     }
+}
+
+int doLoadMod(char *path){
+    char *buf;
+    char format[] = "cd %s;make clean;make;insmod %s/piehook.ko";
+    pid_t status;
+    buf = (char *)calloc(strlen(format) + 2*strlen(path) + 1, 1);
+    sprintf(buf, format, path, path);
+    status = system(buf);
+    if (status == -1) {
+        errorMsg("System Error");
+    }
+    else {
+        if (WIFEXITED(status)) {
+            if (WEXITSTATUS(status) == 0){
+                infoMsg("Load Module Successfully");
+                return 0;
+            }
+            else {
+                errorMsg("Load Module Failed");
+                return -1;
+            }
+        }
+        else {
+            errorMsg("Load Module Failed");
+            return -1;
+        }
+    }
+    return -1;
+}
+
+int doUnloadMod() {
+    pid_t status;
+    status =  system("rmmod piehook");
+    if (status == -1) {
+        errorMsg("System Error");
+    }
+    else {
+        if (WIFEXITED(status)) {
+            if (WEXITSTATUS(status) == 0){
+                infoMsg("Unload Module Successfully");
+                return 0;
+            }
+            else {
+                errorMsg("Unload Module Failed");
+                return -1;
+            }
+        }
+        else {
+            errorMsg("Unload Module Failed");
+            return -1;
+        }
+    }
+    return -1;
 }
 
 int decodeJson(char *filename) {
