@@ -38,7 +38,6 @@ static struct option long_options[] = {
 
 static char short_options[] = "hil::ut:s:p:g:e:d:123456";
 
-// TODO: Enable & Disable
 static char help_msg[] = "Usage: %s [-h|--help] [-i|--info]\n"
                          "          [-l|--load [MOD_DIR]] [-u|--unload]\n"
                          "          [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET] [-g|--stackmagic]\n"
