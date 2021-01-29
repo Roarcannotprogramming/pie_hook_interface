@@ -27,15 +27,24 @@ static struct option long_options[] = {
     {"load", optional_argument, NULL, 'l'},
     {"unload", no_argument, NULL, 'u'},
     {"info", no_argument, NULL, 'i'},
+    {"enable-piehook", no_argument, NULL, '1'},
+    {"enable-heaphook", no_argument, NULL, '2'},
+    {"enable-stackhook", no_argument, NULL, '3'},
+    {"disable-piehook", no_argument, NULL, '4'},
+    {"disable-heaphook", no_argument, NULL, '5'},
+    {"disable-stackhook", no_argument, NULL, '6'},
     {NULL, 0, NULL, 0}
 };
 
-static char short_options[] = "hil::ut:s:p:g:e:d:";
+static char short_options[] = "hil::ut:s:p:g:e:d:123456";
 
+// TODO: Enable & Disable
 static char help_msg[] = "Usage: %s [-h|--help] [-i|--info]\n"
                          "          [-l|--load [MOD_DIR]] [-u|--unload]\n"
                          "          [-t|--text TEXT_SEG_BASE] [-s|--stack STACK_BASE] [-p|--heap HEAP_OFFSET] [-g|--stackmagic]\n"
-                         "          [-e|--encodejson JSONFILE] [-d|--decodejson JSONFILE]\n"
+                         "          [-1|--enable-piehook] [-2|--enable-heaphook] [-3|--enable-stackhook]\n"
+                         "          [-4|--disable-piehook] [-5|--disable-heaphook] [-6|--disable-stackhook]\n"
+                         "          [-e|--encodejson JSONFILE] [-d|--decodejson JSONFILE]\n\n"
                          "    -h, --help\tShow this help message\n"
                          "    -i, --info\tShow the hooked address\n"
                          "    -l, --load\tLoad the piehook kernel module (MOD_DIR means the directory of piehook project, default is ../piehook)\n"
@@ -44,6 +53,7 @@ static char help_msg[] = "Usage: %s [-h|--help] [-i|--info]\n"
                          "    -s, --stack STACK_BASE\tEnable stack base hook (STACK_BASE means the top of user stack area)\n"
                          "    -p, --heap HEAP_OFFSET\tEnable heap base hook (HEAP_OFFSET means OFFSET from the end of text area)\n"
                          "    -g, --stackmagic STACK_OFFSET\tEnable stack offset hook(the offset need to be fine-tuning manually)\n"
+                         "    -1~6\tenable or disable the corresponding hook\n"
                          "    -e, --encodejson JSONFILE\texport the setting message to JSONFILE in format of json\n"
                          "    -d, --decodejson JSONFILE\timport the setting message from JSONFILE in format of json\n";
 
@@ -63,6 +73,12 @@ int doLoadMod(char *path);
 int doUnloadMod();
 int doShowInfo();
 int doGetInfo(struct piehook_info *p); 
+int doEnableTextHook();
+int doEnableHeapHook();
+int doEnableStackHook();
+int doDisableTextHook();
+int doDisableHeapHook();
+int doDisableStackHook();
 
 int main(int argc, char *argv[]) {
     int opt;
@@ -131,6 +147,32 @@ int main(int argc, char *argv[]) {
         case 'd':
             decodeJson(optarg);
             break;
+
+        case '1':
+            doEnableTextHook();
+            break;
+
+        case '2':
+            doEnableHeapHook();
+            break;
+
+        case '3':
+            doEnableStackHook();
+            break;
+
+        case '4':
+            doDisableTextHook();
+            break;
+        
+        case '5':
+            doDisableHeapHook();
+            break;
+        
+        case '6':
+            doDisableStackHook();
+            break;
+        
+        case '?':
         default:
             fprintf(stderr, "\n");
             fprintf(stderr, help_msg, argv[0]);
@@ -142,6 +184,175 @@ int main(int argc, char *argv[]) {
         doShowInfo();
     }
 }
+
+int doEnableTextHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (!pi.piehook_enabled) {
+        if(ioctl(fd, PIEHOOK_ENABLE) < 0) {
+            errorMsg("Cannot enable PIE hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("PIE Hook Enabled, Text Offset: %#lx", pi.pie_rnd_offset + TEXT_MIN);
+    close(fd);
+    return 0;
+}
+
+int doEnableHeapHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (!pi.heaphook_enabled) {
+        if(ioctl(fd, HEAPHOOK_ENABLE) < 0) {
+            errorMsg("Cannot enable Heap hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("Heap Hook Enabled, Heap Base Offset: %#lx", pi.heap_rnd_offset);
+    close(fd);
+    return 0;
+}
+
+int doEnableStackHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (!pi.stackhook_enabled) {
+        if(ioctl(fd, STACKHOOK_ENABLE) < 0) {
+            errorMsg("Cannot enable Stack hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("Stack Hook Enabled, Stack Base: %#lx, Stack Offset: %#lx", pi.stack_rnd_base, pi.stack_rnd_offset);
+    close(fd);
+    return 0;
+}
+
+int doDisableTextHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (pi.piehook_enabled) {
+        if(ioctl(fd, PIEHOOK_DISABLE) < 0) {
+            errorMsg("Cannot Disable PIE hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("PIE Hook Disabled");
+    close(fd);
+    return 0;
+}
+
+int doDisableHeapHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (pi.heaphook_enabled) {
+        if(ioctl(fd, HEAPHOOK_DISABLE) < 0) {
+            errorMsg("Cannot Disable Heap hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("Heap Hook Disabled");
+    close(fd);
+    return 0;
+}
+
+int doDisableStackHook() {
+    int fd = open("/dev/piehook", O_RDWR);
+
+    if(fd < 0){
+        errorMsg("Cannot open /dev/piehook, please load the module first [-l|--load]");
+        return -1;
+    }
+
+    struct piehook_info pi = {0};
+    if (doGetInfo(&pi)) {
+        errorMsg("Get info failed");
+        close(fd);
+        return -1;
+    }
+
+    if (pi.stackhook_enabled) {
+        if(ioctl(fd, STACKHOOK_DISABLE) < 0) {
+            errorMsg("Cannot Disable Stack hook");
+            close(fd);
+            return -1;
+        }
+    }
+
+    infoMsg("Stack Hook Disabled");
+    close(fd);
+    return 0;
+}
+
 
 int doGetInfo(struct piehook_info *p) {
     if (!p) {
