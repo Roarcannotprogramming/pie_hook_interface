@@ -46,7 +46,7 @@ static char help_msg[] = "Usage: %s [-h|--help] [-i|--info]\n"
                          "          [-e|--encodejson JSONFILE] [-d|--decodejson JSONFILE]\n\n"
                          "    -h, --help\tShow this help message\n"
                          "    -i, --info\tShow the hooked address\n"
-                         "    -l, --load\tLoad the piehook kernel module (MOD_DIR means the directory of piehook project, default is ../piehook)\n"
+                         "    -l, --load\tLoad the piehook kernel module (MOD_DIR means the directory of piehook project, default is ../kernel_module)\n"
                          "    -u, --unload\tUnload the piehook kernel module (DO NOT CHANGE THE NAME OF MODULE \"piehook\")\n"
                          "    -t, --text TEXT_SEG_BASE\tEnable text base PIE hook (TEXT_SEG_BASE means 0x555555554000 + OFFSET)\n"
                          "    -s, --stack STACK_BASE\tEnable stack base hook (STACK_BASE means the top of user stack area)\n"
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
                 doLoadMod(optarg);
             }
             else {
-                doLoadMod("../piehook");
+                doLoadMod("../kernel_module");
             }
             break;
 
